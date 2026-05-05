@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+firebase-debug.log
+
+# Kotlin/Gradle
+.gradle/
+build/
+*.class
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Google Cloud / Firebase
+.firebaserc
+firebase.json
+service-account*.json
+gcloud-credentials*.json

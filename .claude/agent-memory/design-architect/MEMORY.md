@@ -1,0 +1,2 @@
+- [Project context](project_context.md) — note自動投稿アプリ。DDD+Kotlin Spring Boot+React。MVPスコープと拡張ポイントを把握済み
+- [Design doc structure](project_design_doc.md) — docs/design.md の構成と設計判断の根拠を記録
