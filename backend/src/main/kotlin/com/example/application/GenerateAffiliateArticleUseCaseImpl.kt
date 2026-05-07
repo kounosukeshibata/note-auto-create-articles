@@ -49,6 +49,7 @@ class GenerateAffiliateArticleUseCaseImpl(
             uniqueInsight = input.uniqueInsight,
             articleType = input.articleType,
             ctaInfo = input.ctaInfo,
+            wordCount = input.wordCount,
         )
         val image = vertexAiClient.generateImage(input.theme)
 

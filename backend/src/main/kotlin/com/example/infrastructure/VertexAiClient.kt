@@ -17,6 +17,7 @@ interface VertexAiClient {
         uniqueInsight: String = "",
         articleType: String = "一般",
         ctaInfo: String = "",
+        wordCount: Int? = null,
     ): Content
     fun generateImage(prompt: String): Image
 }

@@ -1,5 +1,6 @@
 export type AffiliatePlatform = 'AMAZON';
 export type ArticleType = '一般' | 'アフィリエイト' | '有料(500円)';
+export type WordCount = 1000 | 2000 | 3000 | 4000;
 
 export interface GenerateArticleRequest {
   theme: string;
@@ -10,6 +11,7 @@ export interface GenerateArticleRequest {
   uniqueInsight?: string;
   articleType?: ArticleType;
   ctaInfo?: string;
+  wordCount?: WordCount;
 }
 
 export interface AffiliateLinkDto {

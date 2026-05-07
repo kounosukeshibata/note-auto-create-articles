@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
@@ -85,7 +86,7 @@ class GenerateAffiliateArticleUseCaseTest {
 
         whenever(vertexAiClient.extractKeywords(any())).thenReturn(sampleKeywords)
         whenever(amazonClient.searchProducts(any())).thenReturn(listOf(sampleProduct))
-        whenever(vertexAiClient.generateContent(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(sampleContent)
+        whenever(vertexAiClient.generateContent(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyOrNull())).thenReturn(sampleContent)
         whenever(vertexAiClient.generateImage(any())).thenReturn(sampleImage)
         whenever(articleRepository.save(any())).thenReturn(savedArticle)
 
@@ -99,7 +100,7 @@ class GenerateAffiliateArticleUseCaseTest {
     fun `正常系 - アフィリエイトリンクが商品の affiliateUrl から設定される`() {
         whenever(vertexAiClient.extractKeywords(any())).thenReturn(sampleKeywords)
         whenever(amazonClient.searchProducts(any())).thenReturn(listOf(sampleProduct))
-        whenever(vertexAiClient.generateContent(any(), any(), any(), any(), any(), any(), any(), any(), any())).thenReturn(sampleContent)
+        whenever(vertexAiClient.generateContent(any(), any(), any(), any(), any(), any(), any(), any(), any(), anyOrNull())).thenReturn(sampleContent)
         whenever(vertexAiClient.generateImage(any())).thenReturn(sampleImage)
         // save を呼び出した引数をそのまま返す（リンク注入済みの記事を保持）
         whenever(articleRepository.save(any())).thenAnswer { inv -> inv.arguments[0] as Article }

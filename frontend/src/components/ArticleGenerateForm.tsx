@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GenerateArticleRequest, ArticleType, AffiliatePlatform } from '../types';
+import type { GenerateArticleRequest, ArticleType, AffiliatePlatform, WordCount } from '../types';
 
 interface FormState {
   theme: string;
@@ -10,6 +10,7 @@ interface FormState {
   articleType: ArticleType;
   ctaInfo: string;
   affiliatePlatforms: AffiliatePlatform[];
+  wordCount: WordCount | '';
 }
 
 interface FormErrors {
@@ -50,6 +51,7 @@ export function ArticleGenerateForm({ onSubmit }: ArticleGenerateFormProps) {
     articleType: 'アフィリエイト',
     ctaInfo: '',
     affiliatePlatforms: ['AMAZON'],
+    wordCount: 2000,
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -80,6 +82,7 @@ export function ArticleGenerateForm({ onSubmit }: ArticleGenerateFormProps) {
     if (form.storyTrigger.trim()) req.storyTrigger = form.storyTrigger.trim();
     if (form.uniqueInsight.trim()) req.uniqueInsight = form.uniqueInsight.trim();
     if (form.ctaInfo.trim()) req.ctaInfo = form.ctaInfo.trim();
+    if (form.wordCount) req.wordCount = form.wordCount;
 
     onSubmit(req);
   };
@@ -209,6 +212,29 @@ export function ArticleGenerateForm({ onSubmit }: ArticleGenerateFormProps) {
           />
         </div>
       )}
+
+      <div className="form-group">
+        <label htmlFor="wordCount" className="form-label">
+          文字数目安 <span className="required">*</span>
+        </label>
+        <select
+          id="wordCount"
+          className="form-select"
+          value={form.wordCount}
+          onChange={(e) => {
+            const val = e.target.value;
+            setForm((prev) => ({
+              ...prev,
+              wordCount: val ? (Number(val) as WordCount) : '',
+            }));
+          }}
+        >
+          <option value={1000}>1,000文字程度</option>
+          <option value={2000}>2,000文字程度</option>
+          <option value={3000}>3,000文字程度</option>
+          <option value={4000}>4,000文字程度</option>
+        </select>
+      </div>
 
       <div className="form-group">
         <fieldset>

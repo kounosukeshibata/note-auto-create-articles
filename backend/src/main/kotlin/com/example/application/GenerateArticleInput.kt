@@ -13,4 +13,5 @@ data class GenerateArticleInput(
     val uniqueInsight: String = "",
     val articleType: String = "一般",
     val ctaInfo: String = "",
+    val wordCount: Int? = null,
 )

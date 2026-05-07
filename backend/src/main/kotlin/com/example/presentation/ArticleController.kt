@@ -50,6 +50,7 @@ class ArticleController(
             uniqueInsight = request.uniqueInsight ?: "",
             articleType = request.articleType ?: "一般",
             ctaInfo = request.ctaInfo ?: "",
+            wordCount = request.wordCount,
         )
         val output = generateArticleUseCase.execute(input)
         return ResponseEntity.ok(output.toResponse())

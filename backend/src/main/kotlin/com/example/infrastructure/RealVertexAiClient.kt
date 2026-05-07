@@ -52,11 +52,13 @@ class RealVertexAiClient(
         uniqueInsight: String,
         articleType: String,
         ctaInfo: String,
+        wordCount: Int?,
     ): Content {
         val keywordStr = keywords.joinToString("・") { it.value }
         val productsSection = buildProductsSection(products)
+        val wordCountInstruction = wordCount?.let { "記事全体の文字数は${it}文字程度になるよう調整してください。\n\n" } ?: ""
 
-        val prompt = contentTemplate
+        val prompt = wordCountInstruction + contentTemplate
             .replace("{theme}", theme)
             .replace("{keywords}", keywordStr)
             .replace("{products_section}", productsSection)
@@ -67,7 +69,14 @@ class RealVertexAiClient(
             .replace("{article_type}", articleType)
             .replace("{cta_info}", ctaInfo.ifBlank { "（未入力）" })
 
-        val generatedText = callGemini(prompt, maxTokens = 8192, temperature = 0.7)
+        val maxTokens = when {
+            wordCount != null && wordCount >= 4000 -> 12000
+            wordCount != null && wordCount >= 3000 -> 9000
+            wordCount != null && wordCount >= 2000 -> 6000
+            else -> 4000
+        }
+
+        val generatedText = callGemini(prompt, maxTokens = maxTokens, temperature = 0.7)
             ?: return Content(title = "${theme}の完全ガイド", text = "記事の生成に失敗しました。")
 
         return parseContent(generatedText, theme)

@@ -27,6 +27,7 @@ class StubVertexAiClient : VertexAiClient {
         uniqueInsight: String,
         articleType: String,
         ctaInfo: String,
+        wordCount: Int?,
     ): Content {
         val keywordStr = keywords.joinToString("・") { it.value }
 
