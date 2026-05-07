@@ -1,0 +1,1 @@
+- [Project: Note Auto-Post](project_note_auto_post.md) — UseCase フロー・スタブ戦略・RealVertexAiClient の挙動・現在の実装状態
