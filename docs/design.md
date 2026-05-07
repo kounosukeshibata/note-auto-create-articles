@@ -49,23 +49,20 @@ graph TB
         CTRL["ArticleController<br/>presentation層"]
         UC["GenerateAffiliateArticleUseCase<br/>application層"]
         DOM["Article集約 / LinkReplacementService<br/>domain層"]
-        REPO["FirestoreArticleRepository<br/>infrastructure層"]
-        VAI["VertexAiClient<br/>infrastructure層"]
-        RAF["RakutenAffiliateClient<br/>infrastructure層"]
-        AAF["AmazonAffiliateClient<br/>infrastructure層"]
-        NOTE["NoteClient<br/>infrastructure層"]
+        REPO["InMemoryArticleRepository<br/>infrastructure層（開発）"]
+        VAI["RealVertexAiClient / StubVertexAiClient<br/>infrastructure層"]
+        AAF["RealAmazonAffiliateClient / StubAmazonAffiliateClient<br/>infrastructure層"]
+        NOTE["NoteClient<br/>infrastructure層（将来実装予定）"]
     end
 
     subgraph GCP["Google Cloud Platform"]
-        FS["Cloud Firestore"]
         SM["Secret Manager"]
-        VA["Vertex AI<br/>Gemini 1.5 Pro / Imagen 3"]
+        GA["Gemini API<br/>Gemini 2.5 Flash"]
     end
 
     subgraph External["外部サービス"]
-        RAK["楽天アフィリエイトAPI"]
         AMZ["Amazon Product Advertising API"]
-        NOTEP["note API"]
+        NOTEP["note API（将来）"]
     end
 
     FE -- "REST API (JSON)" --> CTRL
@@ -73,15 +70,12 @@ graph TB
     UC --> DOM
     UC --> REPO
     UC --> VAI
-    UC --> RAF
     UC --> AAF
-    UC --> NOTE
+    UC -.->|将来実装| NOTE
 
-    REPO --> FS
-    VAI --> VA
-    RAF --> RAK
+    VAI --> GA
     AAF --> AMZ
-    NOTE --> NOTEP
+    NOTE -.->|将来| NOTEP
     Backend -- "Secret取得" --> SM
 ```
 
@@ -103,11 +97,10 @@ graph LR
 | `GenerateAffiliateArticleUseCase` | application | パイプライン全体のオーケストレーション |
 | `Article` 集約 | domain | 記事ドメインのビジネスルールを保持する集約ルート |
 | `LinkReplacementService` | domain | プレースホルダーをアフィリエイトリンクへ置換するドメインサービス |
-| `FirestoreArticleRepository` | infrastructure | Firestoreへの永続化 |
-| `VertexAiClient` | infrastructure | Gemini（記事・キーワード生成）・Imagen 3（画像生成）の呼び出し |
-| `RakutenAffiliateClient` | infrastructure | 楽天アフィリエイトAPI連携 |
-| `AmazonAffiliateClient` | infrastructure | Amazon Product Advertising API連携 |
-| `NoteClient` | infrastructure | noteへの下書き一時保存 |
+| `InMemoryArticleRepository` | infrastructure | インメモリ永続化（開発環境）。`storage.type=memory`（デフォルト）で有効 |
+| `RealVertexAiClient` / `StubVertexAiClient` | infrastructure | Gemini 2.5 Flash で記事・キーワード生成。`vertex.ai.stub` で切替 |
+| `RealAmazonAffiliateClient` / `StubAmazonAffiliateClient` | infrastructure | Amazon Product Advertising API 連携。`amazon.stub` で切替 |
+| `NoteClient` | infrastructure | noteへの下書き一時保存（将来実装予定） |
 
 ---
 
@@ -172,7 +165,8 @@ graph LR
   "storyTrigger": "初めての登山で靴ずれして大変だった経験から",
   "uniqueInsight": "10足以上を実際に試しソールの硬さと防水性が最重要と気づいた",
   "articleType": "アフィリエイト",
-  "ctaInfo": "Amazonアソシエイトリンクを各商品に設置"
+  "ctaInfo": "Amazonアソシエイトリンクを各商品に設置",
+  "wordCount": 2000
 }
 ```
 
@@ -186,6 +180,7 @@ graph LR
 | `uniqueInsight` | String | No | 独自の発見・一次情報（E-E-A-T強化） |
 | `articleType` | String | No | 記事タイプ: `一般` / `アフィリエイト` / `有料(500円)`。デフォルト`一般` |
 | `ctaInfo` | String | No | 紹介リンク・価格設定。`articleType`がアフィリエイト/有料のとき有効 |
+| `wordCount` | Int | No | 文字数目安: `1000` / `2000` / `3000` / `4000`。Gemini へ指示として渡す |
 
 **レスポンス（200 OK）**
 
@@ -197,14 +192,14 @@ graph LR
   "imageUrl": "https://storage.googleapis.com/...",
   "affiliateLinks": [
     {
-      "url": "https://hb.afl.rakuten.co.jp/...",
-      "trackingId": "rakuten-xxxx",
-      "platform": "RAKUTEN",
+      "url": "https://www.amazon.co.jp/dp/B0EXAMPLE?tag=test-22",
+      "trackingId": "tracking-amazon-0",
+      "platform": "AMAZON",
       "productName": "モンベル トレッキングシューズ",
       "price": 18700
     }
   ],
-  "status": "NOTE_DRAFTED"
+  "status": "SAVED"
 }
 ```
 
@@ -224,9 +219,9 @@ graph LR
 
 | HTTPステータス | コード | 発生条件 |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | `theme` または `imagePrompt` が空 |
+| 400 | `VALIDATION_ERROR` | `theme` が空 |
 | 401 | `UNAUTHORIZED` | 未認証リクエスト |
-| 503 | `AI_SERVICE_UNAVAILABLE` | Vertex AI が応答しない |
+| 503 | `AI_SERVICE_UNAVAILABLE` | Gemini API が応答しない |
 | 503 | `AFFILIATE_API_UNAVAILABLE` | 楽天・Amazon API が両方とも失敗 |
 
 ### 4.3 GET /api/articles/{id}
@@ -281,12 +276,10 @@ sequenceDiagram
     participant FE as Frontend
     participant CTRL as ArticleController
     participant UC as GenerateAffiliateArticleUseCase
-    participant Gemini as VertexAiClient (Gemini)
-    participant Imagen as VertexAiClient (Imagen 3)
+    participant Gemini as VertexAiClient (Gemini 2.5 Flash)
     participant AFF as AffiliateApiClient
     participant LRS as LinkReplacementService
-    participant Repo as FirestoreArticleRepository
-    participant Note as NoteClient
+    participant Repo as ArticleRepository
 
     FE->>CTRL: POST /api/articles/generate
     CTRL->>UC: execute(input)
@@ -295,15 +288,15 @@ sequenceDiagram
     UC->>Gemini: extractKeywords(theme)
     Gemini-->>UC: List<SeoKeyword>
 
-    Note over UC,AFF: Step 2: 商品検索（楽天・Amazon並列）
-    UC->>AFF: searchProducts(keywords, platforms)
-    AFF-->>UC: List<ProductInfo>（還元率優先でソート済み）
+    Note over UC,AFF: Step 2: 商品検索（Amazon）
+    UC->>AFF: searchProducts(keywords)
+    AFF-->>UC: List<ProductInfo>（還元率降順ソート済み、上位5件）
 
-    Note over UC,Imagen: Step 3: 記事・画像生成（並列）
-    UC->>Gemini: generateContent(theme, keywords, products)
-    UC->>Imagen: generateImage(imagePrompt)
-    Gemini-->>UC: Content（プレースホルダー付き）
-    Imagen-->>UC: Image
+    Note over UC,Gemini: Step 3: 記事・画像生成
+    UC->>Gemini: generateContent(theme, keywords, products, ..., wordCount)
+    Gemini-->>UC: Content（{{product_link_N}} プレースホルダー付き）
+    UC->>Gemini: generateImage(theme)
+    Gemini-->>UC: Image
 
     Note over UC,LRS: Step 4: リンク置換
     UC->>LRS: replace(content, productLinks)
@@ -334,13 +327,11 @@ sequenceDiagram
 
 | 障害ポイント | フォールバック |
 |---|---|
-| 楽天API障害 | Amazonのみで商品検索を続行 |
-| Amazon API障害 | 楽天のみで商品検索を続行 |
-| 両方のアフィリエイトAPI障害 | `AFFILIATE_API_UNAVAILABLE (503)` をクライアントに返す |
-| Gemini（記事生成）障害 | リトライ最大3回（Exponential Backoff）後に `AI_SERVICE_UNAVAILABLE (503)` |
-| Imagen（画像生成）障害 | デフォルト画像URLを使用し記事生成を継続 |
-| note API障害 | note投稿を省略し `status=SAVED` の記事をレスポンスとして返す（DBへの保存は完了） |
-| Firestore書き込み失敗 | アプリケーション層でロールバックし `500` を返す |
+| Amazon API障害 | すべての登録済み affiliate クライアントが失敗した場合のみ `AFFILIATE_API_UNAVAILABLE (503)` |
+| Gemini（記事生成）障害 | `null` が返った場合はフォールバックテキストで `Content` を構築。API接続エラーは `AI_SERVICE_UNAVAILABLE (503)` |
+| 画像生成障害 | プレースホルダー画像URL（placehold.co）を使用し継続 |
+| note API（将来） | note投稿を省略し `status=SAVED` の記事をレスポンスとして返す（DBへの保存は完了） |
+| DB書き込み失敗 | アプリケーション層で例外をスローし `500` を返す |
 
 外部APIへのリトライ処理の詳細は `docs/layer/infrastructure.md` を参照。
 
@@ -401,11 +392,14 @@ flowchart TD
 | `GeneratePage` | ページルートコンポーネント。フォーム状態とAPI呼び出しを管理 |
 | `ArticleGenerateForm` | フォームUI。入力バリデーションを担う |
 | `ThemeInput` | 記事テーマ入力欄（必須） |
-| `ImagePromptInput` | 画像プロンプト入力欄（必須） |
-| `TargetAudienceInput` | 想定読者入力欄（任意） |
-| `ArticleStyleSelector` | 記事スタイルセレクト（必須） |
-| `AffiliatePlatformSelector` | アフィリエイトASP チェックボックス（必須、複数選択可） |
-| `WordCountSelector` | 文字数目安セレクト（任意） |
+| `ArticleTypeSelector` | 記事タイプセレクト: 一般/アフィリエイト/有料(500円)（必須） |
+| `TargetPainPointInput` | ターゲットの悩み・現状（任意） |
+| `TargetIdealStateInput` | ターゲットの理想・解決後（任意） |
+| `StoryTriggerInput` | 執筆のきっかけ・ストーリーの起点（任意） |
+| `UniqueInsightInput` | 独自の発見・一次情報（任意） |
+| `CtaInfoInput` | 紹介リンク・価格設定（アフィリエイト/有料タイプ時のみ表示） |
+| `WordCountSelector` | 文字数目安セレクト: 1000/2000/3000/4000字（デフォルト2000） |
+| `AffiliatePlatformSelector` | アフィリエイトASP チェックボックス（必須、現在はAMAZONのみ） |
 | `GenerateButton` | 生成ボタン。生成中はスピナーを表示しボタンを無効化 |
 | `GenerationProgress` | 生成中のステップ表示（キーワード抽出中/商品検索中/記事生成中/画像生成中）|
 
@@ -420,12 +414,15 @@ flowchart TD
 | 執筆のきっかけ・ストーリーの起点 | テキストエリア | 任意 | 200 | 0〜200文字 | 「初めての登山で靴ずれして大変だった経験から」 |
 | 独自の発見・一次情報 | テキストエリア | 任意 | 300 | 0〜300文字 | 「10足以上を試しソールの硬さと防水性が最重要と気づいた」 |
 | 紹介リンク・価格設定 | テキストエリア | 任意 | 200 | アフィリエイト/有料タイプ時に表示 | 「Amazonアソシエイトリンクを各商品に設置」 |
+| 文字数目安 | セレクト | ✅ | - | 1000/2000/3000/4000 のいずれか | デフォルト: 2000 |
 | アフィリエイトASP | チェックボックス | ✅ | - | Amazonを1つ以上選択 | Amazonにチェック |
 
 **フォームのバリデーションロジック:**
 
 ```typescript
 type ArticleType = '一般' | 'アフィリエイト' | '有料(500円)';
+
+type WordCount = 1000 | 2000 | 3000 | 4000;
 
 type GenerateFormInput = {
   theme: string;
@@ -436,6 +433,7 @@ type GenerateFormInput = {
   uniqueInsight?: string;
   articleType: ArticleType;
   ctaInfo?: string;
+  wordCount?: WordCount;
 };
 
 function validateForm(input: GenerateFormInput): Record<string, string> {
@@ -466,10 +464,10 @@ function validateForm(input: GenerateFormInput): Record<string, string> {
 | ステップ | 説明 | 目安時間 |
 |---|---|---|
 | キーワード抽出中 | テーマからSEOキーワードを抽出 | 3〜5秒 |
-| 商品検索中 | 楽天・Amazonで商品を並列検索 | 4〜7秒 |
-| 記事生成中 | Gemini で本文を生成・キーワード埋め込み | 10〜15秒 |
-| 画像生成中 | Imagen 3 でアイキャッチ画像を生成 | 5〜8秒 |
-| 最終処理中 | リンク置換・DB保存・note投稿 | 2〜3秒 |
+| 商品検索中 | Amazon で商品を検索 | 4〜7秒 |
+| 記事生成中 | Gemini 2.5 Flash で本文を生成（文字数: 1000〜4000字） | 10〜60秒 |
+| 画像生成中 | アイキャッチ画像を生成 | 2〜5秒 |
+| 最終処理中 | リンク置換・DB保存 | 1〜2秒 |
 
 **進捗表示コンポーネント実装例:**
 
@@ -539,7 +537,7 @@ export const GenerationProgress: React.FC<GenerationProgressProps> = ({ state })
 
 | HTTPステータス | エラーコード | 表示メッセージ | リカバリーアクション |
 |---|---|---|---|
-| 400 | `VALIDATION_ERROR` | 「入力内容が正しくありません。テーマと画像プロンプトを確認してください」 | フォーム入力の修正ボタン表示 |
+| 400 | `VALIDATION_ERROR` | 「入力内容が正しくありません。テーマを確認してください」 | フォーム入力の修正ボタン表示 |
 | 401 | `UNAUTHORIZED` | 「認証が失効しました。再度ログインしてください」 | ログイン画面へのリダイレクト |
 | 503 | `AI_SERVICE_UNAVAILABLE` | 「AI処理が一時的に利用できません。しばらく経ってから再度お試しください」 | 「リトライ」ボタン表示（3回まで） |
 | 503 | `AFFILIATE_API_UNAVAILABLE` | 「商品情報が一時的に取得できません。しばらく経ってから再度お試しください」 | 「リトライ」ボタン表示（3回まで） |
@@ -600,7 +598,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
 
 function getUserFriendlyMessage(code: GenerationError['code']): string {
   const messages: Record<GenerationError['code'], string> = {
-    VALIDATION_ERROR: '入力内容が正しくありません。テーマと画像プロンプトを確認してください',
+    VALIDATION_ERROR: '入力内容が正しくありません。テーマを確認してください',
     UNAUTHORIZED: '認証が失効しました。再度ログインしてください',
     AI_SERVICE_UNAVAILABLE: 'AI処理が一時的に利用できません。しばらく経ってから再度お試しください',
     AFFILIATE_API_UNAVAILABLE: '商品情報が一時的に取得できません。しばらく経ってから再度お試しください',
@@ -843,7 +841,7 @@ const { isAuthenticated, user } = useAuth();
 | 要件 | 実装方針 |
 |---|---|
 | APIキー管理 | すべてのAPIキー・シークレットを Google Cloud Secret Manager で管理。ハードコード厳禁 |
-| 認証 | Spring Security + Google OAuth2。`/api/**` はすべて認証必須 |
+| 認証 | Spring Security + JWT（email/password認証）。`/api/**` はすべて認証必須 |
 | GCPアクセス | Workload Identity を使用。サービスアカウントキーファイルを使用しない |
 | CSRF | REST API はステートレスであるため `csrf().disable()` |
 | CORS | Frontendオリジンのみを許可リストに追加 |

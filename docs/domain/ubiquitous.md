@@ -18,7 +18,7 @@
 |---|---|---|
 | 記事 | `Article` | 本プロジェクトの中心集約。本文・アイキャッチ画像・SEOキーワード・商品リンクをひとまとめにした生成記事。作成者の `UserId` を保持する |
 | 記事ID | `ArticleId` | 記事を一意に識別するUUID形式の識別子 |
-| 本文 | `Content` | Gemini 1.5 Proが生成した記事のテキスト本文 |
+| 本文 | `Content` | Gemini 2.5 Flashが生成した記事のテキスト本文 |
 | アイキャッチ画像 | `Image` | Imagen 3が生成した記事のサムネイル用画像 |
 | 下書き | Draft | noteに一時保存された状態の記事。最終的な公開は手動で行う |
 
@@ -33,7 +33,7 @@
 
 | 日本語 | 英語（コード名） | 定義 |
 |---|---|---|
-| アフィリエイトリンク | `AffiliateLink` | Amazon のトラッキング用URL。クリック経由の購入で報酬が発生する |
+| アフィリエイトリンク | `AffiliateLink` | Amazon のトラッキング用URL。クリック経由の購入で報酬が発生する（現在は AMAZON のみ実装。RAKUTEN は将来対応予定）|
 | 商品情報 | `ProductInfo` | アフィリエイトAPIから取得した商品の名前・価格・カテゴリ・サムネイルURL等の情報 |
 | 商品リンク群 | `ProductLinks` | 1つの記事に埋め込まれる `AffiliateLink` の集合 |
 | リンク置換 | Link Replacement | 生成テキスト中のプレースホルダー（例: `{{product_link_0}}`）を実際のアフィリエイトリンクに差し替える処理 |
@@ -43,10 +43,10 @@
 
 | 日本語 | 英語（コード名） | 定義 |
 |---|---|---|
-| note投稿 | `NotePost` | noteプラットフォームへの記事の一時保存（下書き）操作。APIを通じて実行する |
+| note投稿 | `NotePost` | noteプラットフォームへの記事の一時保存（下書き）操作。APIを通じて実行する（現在は手動投稿。自動投稿は将来対応予定）|
 | Amazon API | Amazon Affiliate API | Amazonの商品情報取得・アフィリエイトリンク生成のためのAPI（Amazon Product Advertising API） |
-| Vertex AI | Vertex AI | Google CloudのAIプラットフォーム。GeminiとImagenのAPIを提供する |
-| Supabase | Supabase | 本番データベース（PostgreSQL）。ユーザー情報・記事データを永続化する |
+| Gemini API | Gemini API | Google の生成AI API（`generativelanguage.googleapis.com`）。Gemini 2.5 Flash モデルで記事・キーワードを生成する |
+| データベース | InMemoryArticleRepository | 現在はインメモリ実装。将来的に Firestore/Supabase への切り替えを想定 |
 
 ## ドメインサービス
 
@@ -66,6 +66,6 @@
 
 | 日本語 | 英語（コード名） | 定義 |
 |---|---|---|
-| 生成済み | Generated | AI生成が完了し、プレビュー可能な状態 |
-| 保存済み | Saved | データベースへの永続化が完了した状態 |
-| note一時保存済み | NoteDrafted | noteに下書きとして保存された状態 |
+| 生成済み | Generated | AI生成が完了した初期状態 |
+| 保存済み | Saved | データベースへの永続化が完了した状態（現在の `GenerateAffiliateArticleUseCase` の最終状態） |
+| note一時保存済み | NoteDrafted | noteに下書きとして保存された状態（将来の note自動投稿機能で使用予定） |

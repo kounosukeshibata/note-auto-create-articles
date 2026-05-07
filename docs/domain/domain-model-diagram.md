@@ -128,27 +128,28 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant UC as GenerateAffiliateArticleUseCase
-    participant GeminiClient as VertexAiClient (Gemini)
+    participant GeminiClient as VertexAiClient (Gemini 2.5 Flash)
     participant AffAPI as AffiliateApiClient
     participant LRS as LinkReplacementService
     participant Repo as ArticleRepository
-    participant Note as NoteClient
 
-    UC->>GeminiClient: extractKeywords(input)
+    UC->>GeminiClient: extractKeywords(theme)
     GeminiClient-->>UC: List~SeoKeyword~
 
     UC->>AffAPI: searchProducts(keywords)
-    AffAPI-->>UC: List~ProductInfo~
+    AffAPI-->>UC: List~ProductInfo~（還元率順ソート済み）
 
-    UC->>GeminiClient: generateContent(input, keywords, products)
-    GeminiClient-->>UC: Content (with placeholders)
+    UC->>GeminiClient: generateContent(theme, keywords, products, ..., wordCount)
+    GeminiClient-->>UC: Content (with {{product_link_N}} placeholders)
+
+    UC->>GeminiClient: generateImage(theme)
+    GeminiClient-->>UC: Image
 
     UC->>LRS: replace(content, productLinks)
-    LRS-->>UC: Content (with affiliate links)
+    LRS-->>UC: Content (affiliate links injected)
 
-    UC->>Repo: save(article)
-    Repo-->>UC: Article
-
-    UC->>Note: postDraft(article)
-    Note-->>UC: NotePostResult
+    UC->>Repo: save(article.markAsSaved())
+    Repo-->>UC: Article (status=SAVED)
 ```
+
+> note投稿（`NoteClient`）は将来実装予定。現在の UseCase は DB保存（`status=SAVED`）で完了する。

@@ -48,11 +48,11 @@ CI/CDパイプラインを統合した疎結合なマイクロサービスアー
 3. `JwtAuthFilter` がトークンを検証し、SecurityContext に userId をセット
 
 ## 処理フロー (Affiliate Pipeline)
-1. **Keyword Extraction:** 入力項目から Gemini がSEOキーワードを抽出。
-2. **Product Search:** 抽出キーワードをもとにアフィリエイトAPIから商品検索。
-3. **Article/Image Gen:** 商品情報を埋め込んで記事・画像を生成。
-4. **Link Injection:** 生成テキスト内のプレースホルダーを追跡用アフィリエイトリンクへ置換。
-5. **Publish:** note への下書き投稿。
+1. **Keyword Extraction:** 入力項目から Gemini 2.5 Flash がSEOキーワードを抽出。
+2. **Product Search:** 抽出キーワードをもとにアフィリエイトAPIから商品検索（還元率順ソート）。
+3. **Article/Image Gen:** 商品情報・文字数目安を埋め込んで記事・画像を生成。
+4. **Link Injection:** 生成テキスト内の `{{product_link_N}}` プレースホルダーを追跡用アフィリエイトリンクへ置換。
+5. **Save:** `status=SAVED` でDB保存し返却。note への投稿は手動で実施（自動投稿は将来対応予定）。
 
 ## ワークフロー (CI/CD)
 1. Developer: `git push`
