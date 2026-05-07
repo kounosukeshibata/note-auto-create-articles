@@ -29,9 +29,14 @@ interface GenerateAffiliateArticleUseCase {
 
 data class GenerateArticleInput(
     val theme: String,
-    val imagePrompt: String,
-    val targetAudience: String,
     val affiliatePlatforms: List<AffiliatePlatform>,
+    val userId: UserId,
+    val targetPainPoint: String = "",
+    val targetIdealState: String = "",
+    val storyTrigger: String = "",
+    val uniqueInsight: String = "",
+    val articleType: String = "一般",
+    val ctaInfo: String = "",
 )
 
 data class GenerateArticleOutput(

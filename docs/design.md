@@ -151,7 +151,8 @@ graph LR
 
 | メソッド | パス | 説明 | 認証 |
 |---|---|---|---|
-| `POST` | `/api/articles/generate` | 記事生成・DB保存・note一時保存を一括実行 | 必須 |
+| `POST` | `/api/articles/generate` | 記事生成・DB保存 | 必須 |
+| `POST` | `/api/articles/{id}/draft` | 生成済み記事をnoteへ下書き保存 | 必須 |
 | `GET` | `/api/articles/{id}` | 記事を1件取得 | 必須 |
 | `GET` | `/api/articles` | 記事一覧を取得 | 必須 |
 | `DELETE` | `/api/articles/{id}` | 記事を削除 | 必須 |
@@ -165,18 +166,26 @@ graph LR
 ```json
 {
   "theme": "登山初心者向けトレッキングシューズ おすすめ",
-  "imagePrompt": "山道を歩く登山者のシューズのクローズアップ、自然光",
-  "targetAudience": "登山を始めたばかりの20〜40代",
-  "affiliatePlatforms": ["RAKUTEN", "AMAZON"]
+  "affiliatePlatforms": ["AMAZON"],
+  "targetPainPoint": "膝が痛くてどのシューズを選べばいいかわからない",
+  "targetIdealState": "疲れにくく安全に山を楽しめるようになりたい",
+  "storyTrigger": "初めての登山で靴ずれして大変だった経験から",
+  "uniqueInsight": "10足以上を実際に試しソールの硬さと防水性が最重要と気づいた",
+  "articleType": "アフィリエイト",
+  "ctaInfo": "Amazonアソシエイトリンクを各商品に設置"
 }
 ```
 
 | フィールド | 型 | 必須 | 説明 |
 |---|---|---|---|
 | `theme` | String | Yes | 記事テーマ。SEOキーワード抽出・記事生成の起点 |
-| `imagePrompt` | String | Yes | Imagen 3に渡す画像生成プロンプト |
-| `targetAudience` | String | No | 想定読者。記事トーン調整に使用 |
-| `affiliatePlatforms` | List\<String\> | No | 使用するASP。デフォルトは両方 |
+| `affiliatePlatforms` | List\<String\> | No | 使用するASP。デフォルトは`["AMAZON"]` |
+| `targetPainPoint` | String | No | ターゲットの悩み・現状 |
+| `targetIdealState` | String | No | ターゲットの理想・解決後 |
+| `storyTrigger` | String | No | 執筆のきっかけ・ストーリーの起点 |
+| `uniqueInsight` | String | No | 独自の発見・一次情報（E-E-A-T強化） |
+| `articleType` | String | No | 記事タイプ: `一般` / `アフィリエイト` / `有料(500円)`。デフォルト`一般` |
+| `ctaInfo` | String | No | 紹介リンク・価格設定。`articleType`がアフィリエイト/有料のとき有効 |
 
 **レスポンス（200 OK）**
 
@@ -304,11 +313,6 @@ sequenceDiagram
     UC->>Repo: save(article.markAsSaved())
     Repo-->>UC: Article (status=SAVED)
 
-    Note over UC,Note: Step 6: note一時保存
-    UC->>Note: postDraft(article)
-    Note-->>UC: NotePostResult
-    UC->>Repo: save(article.markAsDrafted())
-
     UC-->>CTRL: GenerateArticleOutput
     CTRL-->>FE: 200 OK（記事データ）
 ```
@@ -352,7 +356,7 @@ flowchart TD
     A -->|認証済み| C["/generate\n記事生成フォーム画面"]
     B -->|Google OAuth2 成功| C
     C -->|生成完了| D["/preview/$articleId\nプレビュー画面"]
-    D -->|保存完了| E["/articles\n記事一覧画面（将来実装）"]
+    D -->|「note に一時保存」押下| D
     D -->|「戻る」| C
 ```
 
@@ -409,23 +413,29 @@ flowchart TD
 
 | フィールド名 | 型 | 必須 | 最大文字数 | バリデーション | プレースホルダー例 |
 |---|---|---|---|---|---|
-| テーマ | テキスト | ✅ | 100 | 空でない、1文字以上100文字以内 | 「登山初心者向けトレッキングシューズ おすすめ」 |
-| 画像プロンプト | テキストエリア | ✅ | 300 | 空でない、1文字以上300文字以内 | 「山道を歩く登山者のシューズのクローズアップ、自然光、鮮やかな色」 |
-| ターゲット読者 | テキスト | 任意 | 100 | 0〜100文字 | 「登山を始めたばかりの20〜40代」 |
-| 記事スタイル | セレクト | ✅ | - | 体験談/比較/解説/ランキング のいずれか | 「比較」 |
-| アフィリエイトASP | チェックボックス | ✅ | - | 楽天・Amazon のいずれか以上を選択 | 楽天にチェック、Amazonにチェック |
-| 文字数目安 | セレクト | 任意 | - | 1000/2000/3000 のいずれか、または未指定 | 「2000」 |
+| 記事テーマ | テキストエリア | ✅ | 100 | 空でない、1〜100文字以内 | 「登山初心者向けトレッキングシューズ おすすめ」 |
+| 記事タイプ | セレクト | ✅ | - | 一般/アフィリエイト/有料(500円) のいずれか | 「アフィリエイト」 |
+| ターゲットの悩み・現状 | テキストエリア | 任意 | 200 | 0〜200文字 | 「膝が痛くてどのシューズを選べばいいかわからない」 |
+| ターゲットの理想・解決後 | テキストエリア | 任意 | 200 | 0〜200文字 | 「疲れにくく安全に山を楽しめるようになりたい」 |
+| 執筆のきっかけ・ストーリーの起点 | テキストエリア | 任意 | 200 | 0〜200文字 | 「初めての登山で靴ずれして大変だった経験から」 |
+| 独自の発見・一次情報 | テキストエリア | 任意 | 300 | 0〜300文字 | 「10足以上を試しソールの硬さと防水性が最重要と気づいた」 |
+| 紹介リンク・価格設定 | テキストエリア | 任意 | 200 | アフィリエイト/有料タイプ時に表示 | 「Amazonアソシエイトリンクを各商品に設置」 |
+| アフィリエイトASP | チェックボックス | ✅ | - | Amazonを1つ以上選択 | Amazonにチェック |
 
 **フォームのバリデーションロジック:**
 
 ```typescript
+type ArticleType = '一般' | 'アフィリエイト' | '有料(500円)';
+
 type GenerateFormInput = {
   theme: string;
-  imagePrompt: string;
-  targetAudience?: string;
-  articleStyle: 'EXPERIENCE' | 'COMPARISON' | 'EXPLANATION' | 'RANKING';
-  affiliatePlatforms: ('RAKUTEN' | 'AMAZON')[];
-  wordCount?: 1000 | 2000 | 3000;
+  affiliatePlatforms: 'AMAZON'[];
+  targetPainPoint?: string;
+  targetIdealState?: string;
+  storyTrigger?: string;
+  uniqueInsight?: string;
+  articleType: ArticleType;
+  ctaInfo?: string;
 };
 
 function validateForm(input: GenerateFormInput): Record<string, string> {
@@ -435,20 +445,6 @@ function validateForm(input: GenerateFormInput): Record<string, string> {
     errors.theme = 'テーマは必須です';
   } else if (input.theme.length > 100) {
     errors.theme = 'テーマは100文字以内です';
-  }
-
-  if (!input.imagePrompt?.trim()) {
-    errors.imagePrompt = '画像プロンプトは必須です';
-  } else if (input.imagePrompt.length > 300) {
-    errors.imagePrompt = '画像プロンプトは300文字以内です';
-  }
-
-  if (input.targetAudience && input.targetAudience.length > 100) {
-    errors.targetAudience = 'ターゲット読者は100文字以内です';
-  }
-
-  if (!input.articleStyle) {
-    errors.articleStyle = '記事スタイルを選択してください';
   }
 
   if (!input.affiliatePlatforms || input.affiliatePlatforms.length === 0) {
@@ -632,7 +628,7 @@ function getUserFriendlyMessage(code: GenerationError['code']): string {
 **設計上の考慮:**
 
 - プレビューは `POST /api/articles/generate` のレスポンスデータを使用し、追加のAPI呼び出しを省く
-- 保存完了後は「noteで確認する」リンクをトースト通知で表示する
+- 「note に一時保存」ボタン押下で `POST /api/articles/{id}/draft` を呼び出し、成功後はボタンを「note に保存済み」(disabled) に切り替える。画面遷移は行わない
 
 ### 6.4 TanStack Router ルート定義コード例
 

@@ -1,0 +1,34 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: note-auto-post
+
+cors:
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5175}
+
+storage:
+  type: ${STORAGE_TYPE:memory}   # memory | supabase
+
+jwt:
+  secret: ${JWT_SECRET:dev-secret-key-for-local-development-only-32ch}
+  expiration-ms: 86400000
+
+vertex:
+  ai:
+    stub: ${VERTEX_AI_STUB:true}
+
+amazon:
+  stub: ${AMAZON_STUB:true}
+  access-key-id: ${AMAZON_ACCESS_KEY_ID:}
+  secret-access-key: ${AMAZON_SECRET_ACCESS_KEY:}
+  partner-tag: ${AMAZON_PARTNER_TAG:}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+
+note:
+  stub: ${NOTE_STUB:true}
+  session-cookie: ${NOTE_SESSION_COOKIE:}
+  id: ${NOTE_ID:}

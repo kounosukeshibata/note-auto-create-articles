@@ -31,3 +31,8 @@ dist/
 firebase.json
 service-account*.json
 gcloud-credentials*.json
+
+# Claude/Playwright artifacts
+.playwright-mcp/
+.claude/agent-memory/
+.claude/scheduled_tasks.lock

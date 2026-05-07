@@ -1,0 +1,8 @@
+.gradle/
+build/
+gradle.properties
+*.log
+.env
+.env.*
+.idea/
+*.iml

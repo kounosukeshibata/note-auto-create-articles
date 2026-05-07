@@ -22,6 +22,7 @@
 ```kotlin
 data class Article(
     val id: ArticleId,
+    val userId: UserId,
     val content: Content,
     val image: Image,
     val keywords: List<SeoKeyword>,
@@ -39,6 +40,19 @@ data class Article(
 enum class ArticleStatus { GENERATED, SAVED, NOTE_DRAFTED }
 ```
 
+### `User` 集約
+
+ユーザー認証ドメインの集約。email/password 認証を管理する。
+
+```kotlin
+data class User(
+    val id: UserId,
+    val email: String,
+    val passwordHash: String,
+    val name: String,
+)
+```
+
 ## 値オブジェクト（Value Object）
 
 不変であり、同一性は値そのもので判断する。`copy()` でのみ状態を変更する。
@@ -50,6 +64,17 @@ enum class ArticleStatus { GENERATED, SAVED, NOTE_DRAFTED }
 value class ArticleId(val value: UUID) {
     companion object {
         fun generate(): ArticleId = ArticleId(UUID.randomUUID())
+    }
+}
+```
+
+### `UserId`
+
+```kotlin
+data class UserId(val value: UUID) {
+    companion object {
+        fun generate() = UserId(UUID.randomUUID())
+        fun of(str: String) = UserId(UUID.fromString(str))
     }
 }
 ```
@@ -88,7 +113,7 @@ data class AffiliateLink(
     val productInfo: ProductInfo,
 )
 
-enum class AffiliatePlatform { RAKUTEN, AMAZON }
+enum class AffiliatePlatform { AMAZON }
 ```
 
 ### `ProductInfo`
@@ -99,6 +124,7 @@ data class ProductInfo(
     val price: BigDecimal,
     val category: String,
     val thumbnailUrl: String,
+    val commissionRate: Double,
 )
 ```
 
@@ -145,10 +171,24 @@ class LinkReplacementService {
 interface ArticleRepository {
     fun save(article: Article): Article
     fun findById(id: ArticleId): Article?
-    fun findAll(): List<Article>
+    fun findAllByUserId(userId: UserId): List<Article>
     fun delete(id: ArticleId)
 }
+
+interface UserRepository {
+    fun save(user: User): User
+    fun findByEmail(email: String): User?
+    fun findById(id: UserId): User?
+}
 ```
+
+## ドメイン例外
+
+| 例外クラス | 説明 |
+|---|---|
+| `ArticleNotFoundException` | 指定IDの記事が存在しない |
+| `DuplicateUserException` | 同一メールアドレスのユーザーが既に存在する |
+| `InvalidCredentialsException` | メールアドレスまたはパスワードが不正 |
 
 ## 設計ルール
 
@@ -156,25 +196,19 @@ interface ArticleRepository {
 
 | 種別 | 例 |
 |---|---|
-| 集約・エンティティ | `Article` |
-| 値オブジェクト | `Content`, `AffiliateLink`, `SeoKeyword` など |
+| 集約・エンティティ | `Article`, `User` |
+| 値オブジェクト | `Content`, `AffiliateLink`, `SeoKeyword`, `UserId` など |
 | ドメインサービス | `LinkReplacementService` |
-| リポジトリインターフェース | `ArticleRepository` |
+| リポジトリインターフェース | `ArticleRepository`, `UserRepository` |
 | ドメインイベント（将来） | `ArticleGeneratedEvent` |
-| ドメイン例外 | `ArticleNotFoundException` |
+| ドメイン例外 | `ArticleNotFoundException`, `DuplicateUserException` |
 
 ### 含めてはいけないもの
 
 | 禁止事項 | 理由 |
 |---|---|
 | `@Repository`, `@Service` などSpringアノテーション | インフラ依存 |
-| Firestoreや外部APIのクライアントクラス | インフラ依存 |
+| 外部APIのクライアントクラス | インフラ依存 |
 | HTTPリクエスト/レスポンスのDTO | プレゼンテーション依存 |
 | トランザクション管理（`@Transactional`） | インフラ依存 |
 | ロギング実装（`LoggerFactory`） | インフラ依存 |
-
-### インフラ層への依存を禁止する理由
-
-1. **テスタビリティ:** インフラ依存がなければ、ドメインロジックは純粋なユニットテストで検証できる
-2. **可換性:** DBやAPIの実装を差し替えてもドメインロジックは変わらない
-3. **ドメイン集中:** ビジネスルールの変更がインフラ変更の影響を受けない
