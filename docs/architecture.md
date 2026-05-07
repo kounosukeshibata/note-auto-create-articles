@@ -34,7 +34,7 @@ CI/CDパイプラインを統合した疎結合なマイクロサービスアー
 - **JWT:** `JwtTokenProvider` (JJWT 0.12.x)
 - **Filter:** `JwtAuthFilter` (認証フィルター)
 - **Adapters:** 
-  - `VertexAiClient` (Gemini 2.5 Flash, Imagen 3) — プロンプトはMDファイルで管理 (`prompts/`)
+  - `RealVertexAiClient` / `StubVertexAiClient` (Gemini 2.5 Flash) — `vertex.ai.stub` で切替。プロンプトはMDファイル管理 (`prompts/`)
   - `RealAmazonAffiliateClient` (Gemini APIで商品提案 → Amazon検索URL生成)
   - `NoteClient` (一時保存)
 

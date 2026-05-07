@@ -86,22 +86,28 @@ class JwtTokenProvider(
 
 ### `VertexAiClient`
 
-Vertex AI (Gemini 1.5 Pro / Imagen 3) との通信を担う。
+Gemini 2.5 Flash API との通信を担うインターフェース。実装は2種類。
+
+| 実装クラス | 有効条件 | 用途 |
+|---|---|---|
+| `RealVertexAiClient` | `vertex.ai.stub=false` | Gemini 2.5 Flash を実際に呼び出す本番実装 |
+| `StubVertexAiClient` | `vertex.ai.stub=true`（デフォルト） | テンプレートを返すスタブ（ローカル開発用） |
 
 | メソッド | 説明 |
 |---|---|
 | `extractKeywords(theme)` | テーマからSEOキーワードを抽出 |
-| `generateContent(theme, keywords, products, targetPainPoint, targetIdealState, storyTrigger, uniqueInsight, articleType, ctaInfo)` | SEO最適化プロンプトで記事本文を生成 |
-| `generateImage(prompt)` | アイキャッチ画像を生成 |
+| `generateContent(theme, keywords, products, targetPainPoint, targetIdealState, storyTrigger, uniqueInsight, articleType, ctaInfo, wordCount)` | SEO最適化プロンプトで記事本文を生成。`wordCount` で文字数目安を指定（1000/2000/3000/4000字） |
+| `generateImage(prompt)` | アイキャッチ画像を生成（現在はプレースホルダー） |
 
 **プロンプト管理:** AIに渡すプロンプトは `src/main/resources/prompts/` 配下のMarkdownファイルで管理し、`PromptLoader` でクラスパスから読み込む。
 
 | プロンプトファイル | 用途 |
 |---|---|
-| `prompts/vertex/content-generation.md` | 記事生成プロンプト（SEO特化） |
-| `prompts/vertex/content-generation-product-item.md` | 商品紹介テンプレート |
+| `prompts/vertex/content-generation.md` | 記事生成プロンプト（SEO特化・商品ランキング解説付き） |
 | `prompts/vertex/keyword-extraction.md` | キーワード抽出プロンプト |
 | `prompts/gemini/amazon-product-suggestion.md` | Amazon商品提案プロンプト |
+
+**動的 maxTokens:** `wordCount` に応じてトークン上限を自動調整する（4000字→12000、3000字→9000、2000字→6000、未指定→4000）。
 
 ### `AmazonAffiliateClient`
 

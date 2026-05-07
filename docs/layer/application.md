@@ -37,6 +37,7 @@ data class GenerateArticleInput(
     val uniqueInsight: String = "",
     val articleType: String = "一般",
     val ctaInfo: String = "",
+    val wordCount: Int? = null,           // 1000 / 2000 / 3000 / 4000 字程度
 )
 
 data class GenerateArticleOutput(
@@ -45,6 +46,7 @@ data class GenerateArticleOutput(
     val content: String,
     val imageUrl: String,
     val affiliateLinks: List<AffiliateLinkDto>,
+    val status: String,
 )
 ```
 
@@ -52,44 +54,45 @@ data class GenerateArticleOutput(
 
 ```kotlin
 @Service
-@Transactional
 class GenerateAffiliateArticleUseCaseImpl(
     private val vertexAiClient: VertexAiClient,
-    private val affiliateApiClient: AffiliateApiClient,
-    private val linkReplacementService: LinkReplacementService,
+    private val affiliateApiClients: List<AffiliateApiClient>,
     private val articleRepository: ArticleRepository,
-    private val noteClient: NoteClient,
+    private val linkReplacementService: LinkReplacementService,
 ) : GenerateAffiliateArticleUseCase {
 
     override fun execute(input: GenerateArticleInput): GenerateArticleOutput {
         // 1. SEOキーワード抽出
         val keywords = vertexAiClient.extractKeywords(input.theme)
 
-        // 2. 商品検索
-        val products = affiliateApiClient.searchProducts(keywords, input.affiliatePlatforms)
-        val productLinks = ProductLinks(products.map { it.toAffiliateLink() })
+        // 2. 商品検索（対象プラットフォームのクライアントで並列検索、障害時はフォールバック）
+        val targetClients = affiliateApiClients.filter { it.platform in input.affiliatePlatforms }
+        val topProducts = searchProductsWithFallback(targetClients, keywords)
+            .sortedByDescending { it.productInfo.commissionRate }.take(5)
 
         // 3. 記事・画像生成
-        val content = vertexAiClient.generateContent(input.theme, keywords, products)
-        val image = vertexAiClient.generateImage(input.imagePrompt)
+        val content = vertexAiClient.generateContent(
+            theme = input.theme, keywords = keywords,
+            products = topProducts.map { it.productInfo },
+            targetPainPoint = input.targetPainPoint,
+            targetIdealState = input.targetIdealState,
+            storyTrigger = input.storyTrigger,
+            uniqueInsight = input.uniqueInsight,
+            articleType = input.articleType,
+            ctaInfo = input.ctaInfo,
+            wordCount = input.wordCount,
+        )
+        val image = vertexAiClient.generateImage(input.theme)
 
-        // 4. リンク置換
+        // 4. リンク置換 & 永続化（note投稿はユーザー操作で別途実行）
         val article = Article(
-            id = ArticleId.generate(),
-            content = content,
-            image = image,
-            keywords = keywords,
-            productLinks = productLinks,
+            id = ArticleId.generate(), userId = input.userId,
+            content = content, image = image,
+            keywords = keywords, productLinks = buildProductLinks(topProducts),
         ).injectLinks(linkReplacementService)
 
-        // 5. 永続化
         val saved = articleRepository.save(article.markAsSaved())
-
-        // 6. note一時保存
-        noteClient.postDraft(saved)
-        val drafted = articleRepository.save(saved.markAsDrafted())
-
-        return drafted.toOutput()
+        return saved.toOutput()
     }
 }
 ```

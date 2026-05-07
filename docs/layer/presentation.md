@@ -95,6 +95,7 @@ data class GenerateArticleRequest(
     val uniqueInsight: String? = null,
     val articleType: String? = "一般",
     val ctaInfo: String? = null,
+    val wordCount: Int? = null,           // 1000 / 2000 / 3000 / 4000
 )
 ```
 
