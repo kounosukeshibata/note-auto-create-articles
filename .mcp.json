@@ -3,6 +3,14 @@
     "gcloud": {
       "command": "npx",
       "args": ["-y", "@google-cloud/gcloud-mcp"]
+    },
+    "github": {
+      "command": "bash",
+      "args": ["-c", "exec \"$(git rev-parse --show-toplevel)/.claude/mcp-scripts/github-mcp.sh\""]
+    },
+    "supabase": {
+      "command": "bash",
+      "args": ["-c", "exec \"$(git rev-parse --show-toplevel)/.claude/mcp-scripts/supabase-mcp.sh\""]
     }
   }
 }

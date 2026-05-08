@@ -1,0 +1,168 @@
+{
+  "permissions": {
+    "allow": [
+      "Write",
+      "Bash(./gradlew test *)",
+      "Bash(./gradlew compileKotlin *)",
+      "Bash(./gradlew compileKotlin)",
+      "Bash(./gradlew compileKotlin --no-daemon -q)",
+      "Bash(./gradlew build *)",
+      "Bash(./gradlew bootJar --no-daemon -x test -q)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_network_request",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_handle_dialog",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_file_upload",
+      "Bash(npx playwright *)",
+      "Bash(npx vercel *)",
+      "Bash(npm list *)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(node refresh-note-cookie.mjs)",
+      "Bash(node -e \"require\\('@playwright/test'\\)\")",
+      "Bash(node -e \"require.resolve\\('@playwright/test'\\)\")",
+      "Bash(node *)",
+      "mcp__gcloud__run_gcloud_command",
+      "Bash(gcloud auth print-access-token)",
+      "Bash(gcloud auth application-default print-access-token)",
+      "Bash(gcloud secrets versions access *)",
+      "Bash(gcloud secrets versions list *)",
+      "Bash(gcloud secrets describe *)",
+      "Bash(gcloud secrets list *)",
+      "Bash(gcloud builds submit *)",
+      "Bash(gcloud builds list *)",
+      "Bash(gcloud builds *)",
+      "Bash(gcloud run deploy note-auto-post-backend *)",
+      "Bash(gcloud run services update *)",
+      "Bash(gcloud run services describe *)",
+      "Bash(gcloud logging read *)",
+      "Bash(gcloud config get-value project *)",
+      "Bash(gcloud artifacts repositories get-iam-policy *)",
+      "Bash(gcloud artifacts repositories add-iam-policy-binding *)",
+      "Bash(gcloud artifacts *)",
+      "Bash(docker build *)",
+      "Bash(wait)",
+      "Bash(git *)",
+      "Bash(chmod +x *)",
+      "Bash(jq *)",
+      "WebFetch(domain:generativelanguage.googleapis.com)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(curl *)",
+      "Bash(git push *)",
+      "Read(**/.env)",
+      "Read(**/*.pem)"
+    ],
+    "ask": [
+      "Bash(docker push *)"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); jq -r '.tool_input.file_path // .tool_response.filePath // \"\"' | grep -E '\\.kt$' | { read -r f; [ -n \"$f\" ] && cd \"$ROOT/backend\" && ./gradlew compileKotlin -q 2>&1 | tail -5; } || true",
+            "timeout": 90,
+            "statusMessage": "Kotlin コンパイル確認中..."
+          },
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); jq -r '.tool_input.file_path // .tool_response.filePath // \"\"' | grep -E 'Test\\.kt$' | { read -r f; [ -n \"$f\" ] && cd \"$ROOT/backend\" && ./gradlew test -q 2>&1 | tail -20; } || true",
+            "timeout": 180,
+            "statusMessage": "テスト自動実行中..."
+          },
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); jq -r '.tool_input.file_path // .tool_response.filePath // \"\"' | grep -E '\\.(tsx?|ts)$' | { read -r f; [ -n \"$f\" ] && cd \"$ROOT/frontend\" && npm run lint 2>&1 | tail -5; } || true",
+            "timeout": 60,
+            "statusMessage": "TypeScript 型チェック中..."
+          },
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath // \"\"' | grep 'prompts/' | { read -r f; [ -n \"$f\" ] && jq -n '{\"systemMessage\": \"⚠️ プロンプトファイルを変更しました。記事品質に影響します。スタブモード確認を忘れずに。\"}'; } || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); echo \"$(date '+%Y-%m-%d %H:%M:%S'): コンパクション発生\" >> \"$ROOT/.claude/session-log.txt\" && git -C \"$ROOT\" diff --stat >> \"$ROOT/.claude/session-log.txt\" 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); echo \"$(date '+%Y-%m-%d %H:%M:%S'): コンパクション発生（手動）\" >> \"$ROOT/.claude/session-log.txt\" && git -C \"$ROOT\" diff --stat >> \"$ROOT/.claude/session-log.txt\" 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); cat > /dev/null; echo \"$(date '+%Y-%m-%d %H:%M:%S'): コンパクション完了\" >> \"$ROOT/.claude/session-log.txt\" && echo \"---\" >> \"$ROOT/.claude/session-log.txt\" && jq -n '{\"systemMessage\": \"📝 コンパクション完了。重要な設計決定はエージェントメモリに保存しましたか？\"}' 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "ROOT=$(git rev-parse --show-toplevel); cat > /dev/null; echo \"$(date '+%Y-%m-%d %H:%M:%S'): コンパクション完了（手動）\" >> \"$ROOT/.claude/session-log.txt\" && echo \"---\" >> \"$ROOT/.claude/session-log.txt\" && jq -n '{\"systemMessage\": \"📝 コンパクション完了。重要な設計決定はエージェントメモリに保存しましたか？\"}' 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git log --oneline -3 | jq -Rn '{\"systemMessage\": \"最新3コミット: \" + ([inputs] | join(\" | \"))}'",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -n '{\"systemMessage\": \"実装完了。docs/ の関連ドキュメントを更新しましたか？\"}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
